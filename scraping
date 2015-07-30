@@ -1,0 +1,60 @@
+from urllib.request import Request, re, urlopen
+from bs4 import BeautifulSoup
+import csv
+req = Request("http://socialblade.com/youtube/top/50030d/mostsubscribed", headers={'User-Agent': 'Mozilla/5.0'})
+page = urlopen(req).read()
+soup = BeautifulSoup(page)
+youtubers = []
+youtuberLinks = soup.findAll('a', {'href': re.compile('/youtube/user/')})
+
+print("I'm running!")
+
+youtubeCelebs = open('youtubeCelebs.csv', 'w', newline='')
+with youtubeCelebs as file:
+    count = 0
+    for youtuber in youtuberLinks:
+        print('Starting another youtuber. At number: ' + str(count))
+        # get info from chart
+        obj = {}
+        obj['name'] = youtuber.get_text()
+        obj['last30DaysSubscribers'] = youtuber.find_next('div').get_text()
+        obj['last30DaysViews'] = youtuber\
+            .find_next('div', {'style': re.compile('width: 240px;')}).get_text()
+
+        # get info for each specific page
+        link = 'http://socialblade.com' + youtuber['href']
+        yReq = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
+        yPage = urlopen(yReq).read()
+        ySoup = BeautifulSoup(yPage)
+        pageHeader = ySoup.find('h1', {'id': 'StatsPageHeader'})
+        headers = ['Country', 'Channel Type', 'User Created',
+                   'Videos Uploaded', 'Subscribers', 'Video Views']
+        for head in headers:
+            insert = pageHeader.find_next('div', text=head)
+            obj[head] = insert.find_next('div').get_text().strip('\n')
+        print('Appended!')
+        count = count + 1
+        print(obj)
+        youtubers.append(obj)
+
+    # write to csv file
+    print('Writing to the file now')
+    for i in youtubers:
+        try:
+            writeArray = []
+            writeArray.append(i['name'])
+            writeArray.append(i['last30DaysSubscribers'])
+            writeArray.append(i['last30DaysViews'])
+            for add in headers:
+                writeArray.append(i[add])
+            csv_writer = csv.writer(file)
+            csv_writer.writerow(writeArray)
+        except:
+            print('ERROR OMGGGGG')
+
+        youtubeCelebs.flush()
+
+    print('Done writing')
+
+
+
