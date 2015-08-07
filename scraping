@@ -9,7 +9,7 @@ youtuberLinks = soup.findAll('a', {'href': re.compile('/youtube/user/')})
 
 print("I'm running!")
 
-youtubeCelebs = open('youtubeCelebs.csv', 'w', newline='')
+youtubeCelebs = open('additional.csv', 'w', newline='')
 with youtubeCelebs as file:
     count = 0
     added = 0
@@ -53,7 +53,7 @@ with youtubeCelebs as file:
             print(obj)
             youtubers.append(obj)
             added += 1
-            if added > 300:
+            if added == 500:
                 break
         else:
             print('Youtuber not from the States or is a Vevo channel')
