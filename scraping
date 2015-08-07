@@ -1,7 +1,7 @@
 from urllib.request import Request, re, urlopen
 from bs4 import BeautifulSoup
 import csv
-req = Request("http://socialblade.com/youtube/top/50030d/mostsubscribed", headers={'User-Agent': 'Mozilla/5.0'})
+req = Request("http://socialblade.com/youtube/top/5000/mostsubscribed", headers={'User-Agent': 'Mozilla/5.0'})
 page = urlopen(req).read()
 soup = BeautifulSoup(page)
 youtubers = []
@@ -12,16 +12,10 @@ print("I'm running!")
 youtubeCelebs = open('youtubeCelebs.csv', 'w', newline='')
 with youtubeCelebs as file:
     count = 0
+    added = 0
     for youtuber in youtuberLinks:
         print('Starting another youtuber. At number: ' + str(count))
-        # get info from chart
         obj = {}
-        obj['name'] = youtuber.get_text()
-        obj['last30DaysSubscribers'] = youtuber.find_next('div').get_text()
-        obj['last30DaysViews'] = youtuber\
-            .find_next('div', {'style': re.compile('width: 240px;')}).get_text()
-
-        # get info for each specific page
         link = 'http://socialblade.com' + youtuber['href']
         yReq = Request(link, headers={'User-Agent': 'Mozilla/5.0'})
         yPage = urlopen(yReq).read()
@@ -29,13 +23,41 @@ with youtubeCelebs as file:
         pageHeader = ySoup.find('h1', {'id': 'StatsPageHeader'})
         headers = ['Country', 'Channel Type', 'User Created',
                    'Videos Uploaded', 'Subscribers', 'Video Views']
-        for head in headers:
-            insert = pageHeader.find_next('div', text=head)
-            obj[head] = insert.find_next('div').get_text().strip('\n')
-        print('Appended!')
-        count = count + 1
-        print(obj)
-        youtubers.append(obj)
+        earnings = ['Estimated Monthly Earnings', 'Estimated Yearly Earnings']
+
+        # checks to see if youtuber should be added
+        checkCountry = pageHeader.find_next('div', text=headers[0])
+        checkVevo = ''
+        name = youtuber.get_text()
+        if len(name) >= 4:
+            checkVevo = name[-4:]
+        if (checkCountry.find_next('div').get_text().strip('\n').strip() == 'United States') \
+                and (checkVevo != 'VEVO'):
+            # get info for specific page
+            for head in headers:
+                insert = pageHeader.find_next('div', text=head)
+                obj[head] = insert.find_next('div').get_text().strip('\n').strip()
+
+            # get earnings
+            for earn in earnings:
+                insert = pageHeader.find_next('p', text=earn)
+                obj[earn] = insert.find_previous('p').get_text().strip('\n').strip()
+
+            # get info from chart
+            obj['name'] = name
+            obj['last30DaysSubscribers'] = youtuber.find_next('div').get_text()
+            obj['last30DaysViews'] = youtuber\
+                .find_next('div', {'style': re.compile('width: 240px;')}).get_text()
+
+            print('Appended!')
+            print(obj)
+            youtubers.append(obj)
+            added += 1
+            if added > 300:
+                break
+        else:
+            print('Youtuber not from the States or is a Vevo channel')
+        count += 1
 
     # write to csv file
     print('Writing to the file now')
@@ -46,6 +68,8 @@ with youtubeCelebs as file:
             writeArray.append(i['last30DaysSubscribers'])
             writeArray.append(i['last30DaysViews'])
             for add in headers:
+                writeArray.append(i[add])
+            for add in earnings:
                 writeArray.append(i[add])
             csv_writer = csv.writer(file)
             csv_writer.writerow(writeArray)
